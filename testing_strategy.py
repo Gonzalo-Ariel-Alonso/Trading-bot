@@ -50,7 +50,7 @@ def strategy_test():
         candle_count += 1
         a_row = cursor.fetchone()
     strategy_results(trade_record)
-   # trade_record_json(trade_record)
+    #trade_record_json(trade_record)
 
 
 
