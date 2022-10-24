@@ -1,3 +1,4 @@
+from webbrowser import Opera
 import DB_targeted
 import json
 
@@ -8,7 +9,7 @@ in strategy.md"""
 
 ENTRY = abs(2.5)
 STOP_LOSS = 1.2
-TAKE_PROFIT = 2.4
+TAKE_PROFIT = 3.6
 
 candle_hisotry = DB_targeted.target()
 
@@ -36,11 +37,11 @@ def strategy_test():
     trade_record = [{'ID':None,'Status':'Record_initialization'}]
     while a_row:
         
-        variation_sum += a_row[7]
+        variation_sum = a_row[7]
         if abs(variation_sum) >= ENTRY and trade_record[-1]['Status'] != 'Open':
             add_trade(a_row[5],a_row[0],a_row[1],variation_sum,trade_record)
             variation_sum = 0 
-        if trade_record and trade_record[-1]['Status'] == 'Open':
+        if trade_record[-1]['Status'] == 'Open':
             trade_monitor(a_row[3],a_row[4],trade_record)
 
         if candle_count >= 12:
@@ -49,6 +50,7 @@ def strategy_test():
         
         candle_count += 1
         a_row = cursor.fetchone()
+    trade_record.pop(0)
     strategy_results(trade_record)
     #trade_record_json(trade_record)
 
@@ -113,15 +115,24 @@ def trade_record_json(trade_record):
             json.dump(a_trade, trade_record_json)
 
 def strategy_results(trade_record):
-    wins = loses = final_results = 0
+    wins = loses = 0
+    initial_money = 100
+    actual_money = initial_money
     for a_trade in trade_record:
-        print('ID:',a_trade['ID'],'Status:',a_trade['Status'])
+        print('ID:',a_trade['ID'],'Date:',a_trade['Date'],a_trade['Time'],'Status:',a_trade['Status'])
         if a_trade['Status'] == 'Win':
             wins += 1
+            actual_money = actual_money + actual_money * TAKE_PROFIT / 100
         elif a_trade['Status'] == 'Lose':
             loses += 1
+            actual_money = actual_money - actual_money * STOP_LOSS / 100
+
     print('It tested a total of',len(trade_record),'trades in the period of time 30 days.')
     print('The result was:',wins,'wins and:',loses,'loses')
+    print('And from the initial ammount of $',initial_money,',now you have$',actual_money)
+
+    
+
 
 strategy_test()
 
