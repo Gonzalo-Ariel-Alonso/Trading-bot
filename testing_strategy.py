@@ -1,3 +1,4 @@
+from ast import Break
 from webbrowser import Opera
 import DB_targeted
 import json
@@ -8,8 +9,10 @@ in strategy.md"""
 
 
 ENTRY = abs(2.5)
-STOP_LOSS = 1.2
-TAKE_PROFIT = 3.6
+STOP_LOSS = 0.8
+TAKE_PROFIT = 5
+FEES = 0.006
+LEVERAGE = 1
 
 candle_hisotry = DB_targeted.target()
 
@@ -51,7 +54,7 @@ def strategy_test():
         candle_count += 1
         a_row = cursor.fetchone()
     trade_record.pop(0)
-    strategy_results(trade_record)
+    return strategy_results(trade_record)
     #trade_record_json(trade_record)
 
 
@@ -115,25 +118,68 @@ def trade_record_json(trade_record):
             json.dump(a_trade, trade_record_json)
 
 def strategy_results(trade_record):
+    global FEES
+    global LEVERAGE
     wins = loses = 0
     initial_money = 100
     actual_money = initial_money
     for a_trade in trade_record:
-        print('ID:',a_trade['ID'],'Date:',a_trade['Date'],a_trade['Time'],'Status:',a_trade['Status'])
+        #print('ID:',a_trade['ID'],'Date:',a_trade['Date'],a_trade['Time'],'Status:',a_trade['Status'])
         if a_trade['Status'] == 'Win':
             wins += 1
-            actual_money = actual_money + actual_money * TAKE_PROFIT / 100
+            actual_money = win_trade_formula(actual_money,FEES,LEVERAGE)
         elif a_trade['Status'] == 'Lose':
             loses += 1
             actual_money = actual_money - actual_money * STOP_LOSS / 100
+        if actual_money < 0:
+            print('YOU GOT LIQUIDATED!!')
+            break
 
-    print('It tested a total of',len(trade_record),'trades in the period of time 30 days.')
-    print('The result was:',wins,'wins and:',loses,'loses')
-    print('And from the initial ammount of $',initial_money,',now you have$',actual_money)
+    performance = account_perfomance(initial_money,actual_money)
+    comentaries = True
+    if comentaries:
+        print('It tested a total of',len(trade_record),'trades in the period of time 30 days.')
+        print('The result was:',wins,'wins and:',loses,'loses')
+        print('From the initial ammount of $',initial_money,',now you have$',round(actual_money,2))
+        print('The performance in your account was: %',performance)
 
+    return performance
     
 
+def lose_trade_formula(actual_money,fees,leverage):
+    partial_loss = actual_money * (STOP_LOSS / 100) * leverage
+    net_loss = partial_loss + partial_loss * fees * leverage
+    return actual_money - net_loss
 
+def win_trade_formula(actual_money,fees,leverage):
+    partial_win = actual_money * (TAKE_PROFIT / 100) * leverage
+    net_win = partial_win - partial_win * fees * leverage
+    return actual_money + net_win
+
+def account_perfomance(initial_money,actual_money):
+    perfomance = (actual_money/initial_money*100)-100
+    return round(perfomance,2)
+
+def st_tp_test():
+    global STOP_LOSS
+    global TAKE_PROFIT
+    best_performance = {
+        'Stop loss': 0,
+        'Take profit': 0,
+        'Performance %': 0
+    }
+    for sl in range(6,48,2):
+        STOP_LOSS = sl / 10
+        print('testing with stop loss of %',STOP_LOSS)
+        for tp in range(12,60,2):
+            TAKE_PROFIT = tp / 10
+            performance = strategy_test()
+            if performance > best_performance['Performance %']:
+                best_performance['Stop loss'] = STOP_LOSS
+                best_performance['Take profit'] = TAKE_PROFIT
+                best_performance['Performance %'] = performance
+    print(best_performance)
+
+#st_tp_test()
 strategy_test()
 
-    
