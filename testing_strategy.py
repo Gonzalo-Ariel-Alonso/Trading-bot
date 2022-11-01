@@ -1,16 +1,19 @@
+from http import client
+from unittest import result
 import DB_targeted
 import json
+
 
 """This file will take the data from BTC_candle_hisotory data
 base and its going to test the results of strategy descripted
 in strategy.md"""
 
 
-ENTRY = abs(2.0)
-VOLATILITY_SECURE = abs(ENTRY * 1.3)
-STOP_LOSS = 0.2
-TAKE_PROFIT = 2.4
-FEES = 0.006
+ENTRY = abs(2.9)
+VOLATILITY_SECURE = abs(ENTRY * 1.1)
+STOP_LOSS = 1.1
+TAKE_PROFIT = 4.6
+FEES = 0.010
 LEVERAGE = 1
 
 candle_hisotry = DB_targeted.target()
@@ -39,10 +42,10 @@ def strategy_test():
         
         variation_sum = a_row[7]
         if abs(variation_sum) >= ENTRY and trade_record[-1]['Status'] != 'Open' and abs(variation_sum) < VOLATILITY_SECURE:
-            add_trade(a_row[5],a_row[0],a_row[1],variation_sum,trade_record)
+            add_trade(a_row[6],a_row[0],a_row[2],variation_sum,trade_record)
             variation_sum = 0 
         if trade_record[-1]['Status'] == 'Open':
-            trade_monitor(a_row[3],a_row[4],trade_record)
+            trade_monitor(a_row[2],a_row[4],a_row[3],trade_record)
 
         if candle_count >= 12:
             candle_count = 0
@@ -51,12 +54,14 @@ def strategy_test():
         candle_count += 1
         a_row = cursor.fetchone()
     trade_record.pop(0)
-    return strategy_results(trade_record)
+    results = strategy_results(trade_record)
+
+    return results
     #trade_record_json(trade_record)
 
 
 
-def trade_monitor(high,low,trade_record):
+def trade_monitor(end_time,high,low,trade_record):
     stop_loss = trade_record[-1]['Stop loss']
     take_profit = trade_record[-1]['Take profit']
     position_type = trade_record[-1]['Type']
@@ -70,6 +75,9 @@ def trade_monitor(high,low,trade_record):
             trade_record[-1]['Status'] = 'Lose'
         elif low < take_profit:
             trade_record[-1]['Status'] = 'Win'
+    
+    if trade_record[-1]['Status'] != 'Open':
+        trade_record[-1]['Exit time'] = end_time
 
 
 
@@ -85,6 +93,7 @@ def add_trade(entry,date,time,variation,trade_record):
         'Stop loss': stop_loss_calculator(float(entry),position_type),
         'Take profit': take_profit_calculator(float(entry),position_type),
         'Status': 'Open',
+        'Exit time':'Null'
     })
     
 def take_profit_calculator(entry,position_type):
@@ -137,7 +146,7 @@ def strategy_results(trade_record):
         print('The result was:',wins,'wins and:',loses,'loses')
         print('From the initial ammount of $',initial_money,',now you have $',round(actual_money,2))
         print('The performance in your account was: %',performance)
-
+        
     return performance
     
 
@@ -163,15 +172,15 @@ def st_tp_test():
         'Entry': 0,
         'Stop loss': 0,
         'Take profit': 0,
-        'Performance %': 0
+        'Performance %': -100
     }
-    for entry in range (20,25,1):
+    for entry in range (20,30,1):
         ENTRY = abs(entry / 10)
         print('Testing with entry of %',ENTRY)
-        for sl in range(2,13,2):
+        for sl in range(2,12,1):
             STOP_LOSS = sl / 10
             print('testing with stop loss of %',STOP_LOSS)
-            for tp in range(24,37,2):
+            for tp in range(24,49,2):
                 TAKE_PROFIT = tp / 10
                 performance = strategy_test()
                 if performance > best_performance['Performance %']:
@@ -187,6 +196,4 @@ def st_tp_test():
 strategy_test()
 
 #TOP RESULT:
-# {"Entry": 2.0, "Stop loss": 0.2, "Take profit": 2.4, "Performance %": 3964.38}
-# {"Entry": 2.3, "Stop loss": 0.2, "Take profit": 2.6, "Performance %": 2498.29}
-# {"Entry": 2.3, "Stop loss": 0.6, "Take profit": 2.0, "Performance %": 1219.12}
+# {"Entry": 2.9, "Stop loss": 1.1, "Take profit": 4.6, "Performance %": -5.04}

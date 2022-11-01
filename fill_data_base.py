@@ -106,12 +106,12 @@ def insert_candles():
     SECONDS_IN_HOURS = 3600
     for i in range(0,days_of_info * 2):
         interval_in_minutes = 60
-        response = get_bybit.response(timestamp,interval_in_minutes,candles_per_request)   
-        insert_h1_candle(response)
+        by_bit_response = get_bybit.response(timestamp,interval_in_minutes,candles_per_request)   
+        insert_h1_candle(by_bit_response)
 
         interval_in_minutes = 5
-        response = get_bybit.response(timestamp,interval_in_minutes,candles_per_request * M5_CANDLES_IN_H1)
-        insert_m5_candle(response)
+        by_bit_response = get_bybit.response(timestamp,interval_in_minutes,candles_per_request * M5_CANDLES_IN_H1)
+        insert_m5_candle(by_bit_response)
 
         timestamp += candles_per_request * SECONDS_IN_HOURS
         print('12 hours of cancles added succesfully')
