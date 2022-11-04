@@ -1,12 +1,10 @@
-
-
 class big_candle_strategy:
     def __init__(self,
-    ENTRY = abs(2.9),
+    ENTRY = abs(2.2),
     STOP_LOSS = 1.1,
-    TAKE_PROFIT = 4.4,
+    TAKE_PROFIT = 5,
     FEES = 0.010,
-    LEVERAGE = 2,):
+    LEVERAGE = 2):
         self.ENTRY = ENTRY
         self.VOLATILITY_SECURE = abs(ENTRY * 1.1) 
         self.STOP_LOSS_PERCENT = STOP_LOSS
