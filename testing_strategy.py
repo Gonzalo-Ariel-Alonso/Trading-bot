@@ -1,26 +1,19 @@
-from http import client
-from unittest import result
 import DB_targeted
 import json
 
-
-"""This file will take the data from BTC_candle_hisotory data
-base and its going to test the results of strategy descripted
-in strategy.md"""
+import trading_strategy
+import Candle
 
 
-ENTRY = abs(2.9)
-VOLATILITY_SECURE = abs(ENTRY * 1.1)
-STOP_LOSS = 1.1
-TAKE_PROFIT = 4.6
-FEES = 0.010
-LEVERAGE = 1
 
-candle_hisotry = DB_targeted.target()
-
-cursor = candle_hisotry.cursor(buffered=True)
+strategy = trading_strategy.big_candle_strategy()
 
 def strategy_test():
+    #Conection to data base
+    candle_hisotry = DB_targeted.target()
+    cursor = candle_hisotry.cursor(buffered=True)
+
+    #SQL querys
     sql_consult = 'SELECT * FROM m5_candles'
     cursor.execute(sql_consult)
     a_row = cursor.fetchone()
@@ -33,27 +26,39 @@ def strategy_test():
     #print('Open',a_row[5])
     #print('Close',a_row[6])
     #print('Variation',a_row[7])
-    #print('h1 timestamp',a_row[8])
+    #print('timestamp',a_row[8])
     #print('Volume',a_row[9])
     candle_count = 0
-    variation_sum = 0
     trade_record = [{'ID':None,'Status':'Record_initialization'}]
     while a_row:
-        
-        variation_sum = a_row[7]
-        if abs(variation_sum) >= ENTRY and trade_record[-1]['Status'] != 'Open' and abs(variation_sum) < VOLATILITY_SECURE:
-            add_trade(a_row[6],a_row[0],a_row[2],variation_sum,trade_record)
-            variation_sum = 0 
-        if trade_record[-1]['Status'] == 'Open':
-            trade_monitor(a_row[2],a_row[4],a_row[3],trade_record)
+        a_candle = Candle.m5_Candle(a_row[0],a_row[1],a_row[2],a_row[3],a_row[4],a_row[5],a_row[6],a_row[7],a_row[8],a_row[9],a_row[10])
+        variation_sum = a_candle.h1_variation
 
-        if candle_count >= 12:
-            candle_count = 0
+        # Condition to open a trade
+        if strategy.open_a_trade(variation_sum,trade_record[-1]['Status']):
+            entry_price = a_candle.close
+            entry_date = a_candle.date
+            entry_time = a_candle.end_time
+            add_trade(entry_price,entry_date,entry_time,variation_sum,trade_record)
             variation_sum = 0 
         
-        candle_count += 1
+        # If there is a trade open, track his performance
+        if trade_record[-1]['Status'] == 'Open':
+            trade_monitor(a_row[0],a_row[2],a_row[4],a_row[3],trade_record)
+        
+        # Resert candle count every hour (5 min * 12 = 1 hour)
+        if candle_count >= 12:
+            candle_count = 1
+            variation_sum = 0 
+        else:
+            candle_count += 1
+        #Next row
         a_row = cursor.fetchone()
+
+    #Delete initialization of trade_record
     trade_record.pop(0)
+
+    #Test results based on trades recorded
     results = strategy_results(trade_record)
 
     return results
@@ -61,23 +66,28 @@ def strategy_test():
 
 
 
-def trade_monitor(end_time,high,low,trade_record):
+def trade_monitor(end_date,end_time,high,low,trade_record):
     stop_loss = trade_record[-1]['Stop loss']
     take_profit = trade_record[-1]['Take profit']
     position_type = trade_record[-1]['Type']
+
+    #Long operation
     if position_type == 'Long':
         if high > take_profit:
-            trade_record[-1]['Status'] = 'Win'
+            trade_record[-1]['Status'] = 'Win' #Take profit reached
         elif low < stop_loss:
-            trade_record[-1]['Status'] = 'Lose'
+            trade_record[-1]['Status'] = 'Lose' #Stop loss reached
+
+    #Short operation
     elif position_type == 'Short':
         if high > stop_loss:
-            trade_record[-1]['Status'] = 'Lose'
+            trade_record[-1]['Status'] = 'Lose' #Stop loss reached
         elif low < take_profit:
-            trade_record[-1]['Status'] = 'Win'
+            trade_record[-1]['Status'] = 'Win' #Take profit reached
     
+    #If trade is not open anymore, record exit date and time
     if trade_record[-1]['Status'] != 'Open':
-        trade_record[-1]['Exit time'] = end_time
+        trade_record[-1]['Exit time'] = str(end_date)+' '+str(end_time)
 
 
 
@@ -90,29 +100,13 @@ def add_trade(entry,date,time,variation,trade_record):
         'Time':time,
         'Type':position_type,
         'Entry':entry,
-        'Stop loss': stop_loss_calculator(float(entry),position_type),
-        'Take profit': take_profit_calculator(float(entry),position_type),
+        'Stop loss': strategy.stop_loss_calculator(float(entry),position_type),
+        'Take profit': strategy.take_profit_calculator(float(entry),position_type),
         'Status': 'Open',
         'Exit time':'Null'
     })
     
-def take_profit_calculator(entry,position_type):
-    if position_type == 'Long':
-        take_profit = entry * (TAKE_PROFIT/100) + entry
-    elif position_type == 'Short':
-        take_profit = entry - entry * (TAKE_PROFIT/100)
-    else:
-        take_profit = 'ERROR'
-    return take_profit   
 
-def stop_loss_calculator(entry,position_type):
-    if position_type == 'Long':
-        stop_loss = entry - entry * STOP_LOSS/100
-    elif position_type == 'Short':
-        stop_loss = entry * (STOP_LOSS/100) + entry
-    else:
-        stop_loss = 'ERROR'
-    return stop_loss
 
 
 def trade_record_json(trade_record):
@@ -122,41 +116,44 @@ def trade_record_json(trade_record):
         json.dump(trade_record, trade_record_json)
 
 def strategy_results(trade_record):
+    """Define"""
     global FEES
     global LEVERAGE
+    comentaries = True
     wins = loses = 0
     initial_money = 100
     actual_money = initial_money
     for a_trade in trade_record:
-        print('ID:',a_trade['ID'],'Date:',a_trade['Date'],a_trade['Time'],'Status:',a_trade['Status'])
+        if comentaries:
+            print('ID:',a_trade['ID'],'Date:',a_trade['Date'],a_trade['Time'],'Status:',a_trade['Status'])
         if a_trade['Status'] == 'Win':
             wins += 1
-            actual_money = win_trade_formula(actual_money,FEES,LEVERAGE)
+            actual_money = win_trade_formula(actual_money,strategy.exchange_fees,strategy.leverage)
         elif a_trade['Status'] == 'Lose':
             loses += 1
-            actual_money = lose_trade_formula(actual_money,FEES,LEVERAGE)
+            actual_money = lose_trade_formula(actual_money,strategy.exchange_fees,strategy.leverage)
         if actual_money < 0:
             print('YOU GOT LIQUIDATED!!')
             break
 
     performance = account_perfomance(initial_money,actual_money)
-    comentaries = True
     if comentaries:
         print('It tested a total of',len(trade_record),'trades in the period of time 296 days.')
         print('The result was:',wins,'wins and:',loses,'loses')
         print('From the initial ammount of $',initial_money,',now you have $',round(actual_money,2))
         print('The performance in your account was: %',performance)
+        #analyce_a_trade(trade_record,117)
         
     return performance
     
 
 def lose_trade_formula(actual_money,fees,leverage):
-    partial_loss = actual_money * (STOP_LOSS / 100) * leverage
+    partial_loss = actual_money * (strategy.stop_loss_percent / 100) * leverage
     net_loss = partial_loss + partial_loss * fees * leverage
     return actual_money - net_loss
 
 def win_trade_formula(actual_money,fees,leverage):
-    partial_win = actual_money * (TAKE_PROFIT / 100) * leverage
+    partial_win = actual_money * (strategy.take_profit_percent / 100) * leverage
     net_win = partial_win - partial_win * fees * leverage
     return actual_money + net_win
 
@@ -174,13 +171,13 @@ def st_tp_test():
         'Take profit': 0,
         'Performance %': -100
     }
-    for entry in range (20,30,1):
+    for entry in range (22,33,1):
         ENTRY = abs(entry / 10)
         print('Testing with entry of %',ENTRY)
-        for sl in range(2,12,1):
+        for sl in range(4,13,1):
             STOP_LOSS = sl / 10
             print('testing with stop loss of %',STOP_LOSS)
-            for tp in range(24,49,2):
+            for tp in range(36,53,2):
                 TAKE_PROFIT = tp / 10
                 performance = strategy_test()
                 if performance > best_performance['Performance %']:
@@ -191,6 +188,14 @@ def st_tp_test():
                     print('New best performance:',best_performance)
                     trade_record_json(best_performance)
     print(best_performance)
+
+def analyce_a_trade(trade_list,trade_id):
+
+    print('ID',trade_list[trade_id]['ID'])
+    print('Entry',trade_list[trade_id]['Entry'])
+    print('Stop loss',trade_list[trade_id]['Stop loss'])
+    print('Take profit',trade_list[trade_id]['Take profit'])
+    print('Exit time',trade_list[trade_id]['Exit time'])
 
 #st_tp_test()
 strategy_test()
