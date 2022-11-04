@@ -16,20 +16,16 @@ def strategy_test():
     #SQL querys
     sql_consult = 'SELECT * FROM m5_candles'
     cursor.execute(sql_consult)
-    a_row = cursor.fetchone()
-    
-    #print('Date',a_row[0])
-    #print('Start time',a_row[1])
-    #print('End time',a_row[2])
-    #print('Low',a_row[3])
-    #print('High',a_row[4])
-    #print('Open',a_row[5])
-    #print('Close',a_row[6])
-    #print('Variation',a_row[7])
-    #print('timestamp',a_row[8])
-    #print('Volume',a_row[9])
+
     candle_count = 0
     trade_record = [{'ID':None,'Status':'Record_initialization'}]
+
+    a_row = cursor.fetchone()
+    #Row structure:
+    # Date = a_row[0] , Start time = a_row[1], End time = a_row[2]
+    # Low = a_row[3] , High = a_row[4] , Open = a_row[5] , Close = a_row[6]
+    # Variation = a_row[7],timestamp = a_row[8] , Volume = a_row[9]
+
     while a_row:
         a_candle = Candle.m5_Candle(a_row[0],a_row[1],a_row[2],a_row[3],a_row[4],a_row[5],a_row[6],a_row[7],a_row[8],a_row[9],a_row[10])
         variation_sum = a_candle.h1_variation
@@ -55,7 +51,7 @@ def strategy_test():
         #Next row
         a_row = cursor.fetchone()
 
-    #Delete initialization of trade_record
+    #Remove trade_record initialization
     trade_record.pop(0)
 
     #Test results based on trades recorded
@@ -93,6 +89,7 @@ def trade_monitor(end_date,end_time,high,low,trade_record):
 
 
 def add_trade(entry,date,time,variation,trade_record):
+    """List of dictionaries with all trade info"""
     position_type = 'Short' if variation < 0 else 'Long'
     trade_record.append({
         'ID': len(trade_record),
@@ -116,9 +113,6 @@ def trade_record_json(trade_record):
         json.dump(trade_record, trade_record_json)
 
 def strategy_results(trade_record):
-    """Define"""
-    global FEES
-    global LEVERAGE
     comentaries = True
     wins = loses = 0
     initial_money = 100
@@ -128,10 +122,10 @@ def strategy_results(trade_record):
             print('ID:',a_trade['ID'],'Date:',a_trade['Date'],a_trade['Time'],'Status:',a_trade['Status'])
         if a_trade['Status'] == 'Win':
             wins += 1
-            actual_money = win_trade_formula(actual_money,strategy.exchange_fees,strategy.leverage)
+            actual_money = win_trade_formula(actual_money,strategy.EXCHANGE_FEES,strategy.LEVERAGE)
         elif a_trade['Status'] == 'Lose':
             loses += 1
-            actual_money = lose_trade_formula(actual_money,strategy.exchange_fees,strategy.leverage)
+            actual_money = lose_trade_formula(actual_money,strategy.EXCHANGE_FEES,strategy.LEVERAGE)
         if actual_money < 0:
             print('YOU GOT LIQUIDATED!!')
             break
@@ -148,12 +142,12 @@ def strategy_results(trade_record):
     
 
 def lose_trade_formula(actual_money,fees,leverage):
-    partial_loss = actual_money * (strategy.stop_loss_percent / 100) * leverage
+    partial_loss = actual_money * (strategy.STOP_LOSS_PERCENT / 100) * leverage
     net_loss = partial_loss + partial_loss * fees * leverage
     return actual_money - net_loss
 
 def win_trade_formula(actual_money,fees,leverage):
-    partial_win = actual_money * (strategy.take_profit_percent / 100) * leverage
+    partial_win = actual_money * (strategy.TAKE_PROFIT_PERCENT / 100) * leverage
     net_win = partial_win - partial_win * fees * leverage
     return actual_money + net_win
 
