@@ -4,8 +4,11 @@ from datetime import datetime
 import variation_percent_calc
 import fill_DB
 
-client = Client(binance_conf.API_KEY,binance_conf.SECURITY_KEY)
-print('logged in')
+
+def log_in():
+	client = Client(binance_conf.API_KEY,binance_conf.SECURITY_KEY)
+	print('logged in')
+	return client
 
 """kline format:
 [
@@ -46,11 +49,12 @@ def send_kline_data(klines):
 			h1_timestamp = timestamp
 			hours_added += 1
 		m5_candles_in_h1 = 1 if m5_candles_in_h1 >= 12 else m5_candles_in_h1+1
-		fill_DB.insert_h1(date,start_time,end_time,low,high,open,close,variation_percent,timestamp,volume,h1_timestamp)
+		fill_DB.insert_m5(date,start_time,end_time,low,high,open,close,variation_percent,timestamp,volume,h1_timestamp)
 		if hours_added % 12 == 0:
 			print('12 hours of candles added succsesfuly')
 
 def iterate_multiple_request():
+	client = log_in()
 	MAX_REQUEST = 999
 	INITIAL_TIMESTAMP = actual_timestamp = 1641006000000 # in miliseconds
 	END_TIMESTAMP = 1667012400000
@@ -63,5 +67,3 @@ def iterate_multiple_request():
 		actual_timestamp = end_request + 1
 		print('999 candles added successfully')
 	fill_DB.commit_changes()
-
-iterate_multiple_request()

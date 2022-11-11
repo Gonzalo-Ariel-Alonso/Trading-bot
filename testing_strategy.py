@@ -110,18 +110,24 @@ def strategy_results(trade_record,strategy,comentaries = True):
     wins = loses = 0
     initial_money = 100
     actual_money = initial_money
+    previus_month = '1'
     for a_trade in trade_record:
-        if comentaries:
+        if not comentaries:
             print('ID:',a_trade['ID'],'Date:',a_trade['Date'],a_trade['Time'],'Status:',a_trade['Status'])
         if a_trade['Status'] == 'Win':
             wins += 1
-            actual_money = win_trade_formula(actual_money,strategy)
+            actual_money = win_trade_rebalance(actual_money,strategy)
         elif a_trade['Status'] == 'Lose':
             loses += 1
-            actual_money = lose_trade_formula(actual_money,strategy)
+            actual_money = lose_trade_rebalance(actual_money,strategy)
         if actual_money < 0:
             print('YOU GOT LIQUIDATED!!')
             break
+
+        if previus_month != str(a_trade['Date'])[6]:
+            print('Account perfonamnce in the month number',previus_month,'is:',account_perfomance(initial_money,actual_money))
+            previus_month = str(a_trade['Date'])[6]
+            actual_money = 100
 
     performance = account_perfomance(initial_money,actual_money)
     if comentaries:
@@ -134,12 +140,12 @@ def strategy_results(trade_record,strategy,comentaries = True):
     return performance
     
 
-def lose_trade_formula(actual_money,strategy):
+def lose_trade_rebalance(actual_money,strategy):
     partial_loss = actual_money * (strategy.STOP_LOSS_PERCENT / 100) * strategy.LEVERAGE
     net_loss = partial_loss + partial_loss * strategy.EXCHANGE_FEES * strategy.LEVERAGE
     return actual_money - net_loss
 
-def win_trade_formula(actual_money,strategy):
+def win_trade_rebalance(actual_money,strategy):
     partial_win = actual_money * (strategy.TAKE_PROFIT_PERCENT / 100) * strategy.LEVERAGE
     net_win = partial_win - partial_win * strategy.EXCHANGE_FEES * strategy.LEVERAGE
     return actual_money + net_win

@@ -11,3 +11,7 @@ class m5_Candle:
         self.timestamp = timestamp
         self.volume = volume
         self.h1_timestamp = h1_timestamp
+
+class m5_Candle_kline_format:
+    def __init__(self,kline_candle):
+        self.date = None
