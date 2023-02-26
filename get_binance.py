@@ -4,9 +4,11 @@ from datetime import datetime
 import variation_percent_calc
 import fill_DB
 
-
+CLIENT = None
 def log_in():
+	global CLIENT
 	client = Client(binance_conf.API_KEY,binance_conf.SECURITY_KEY)
+	CLIENT = client
 	print('logged in')
 	return client
 

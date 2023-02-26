@@ -44,3 +44,15 @@ def prof_of_runing():
 
 def runing():
     print('Runing..')
+
+def open_position(type):
+    if type == 'Short':
+        asd = 2
+
+
+def futures_account_balance():
+    get_binance.log_in()
+    futures_balance = get_binance.CLIENT.futures_account_balance()
+    return futures_balance
+
+print(futures_account_balance())
