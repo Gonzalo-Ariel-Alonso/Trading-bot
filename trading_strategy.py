@@ -1,8 +1,8 @@
 class big_candle_strategy:
     def __init__(self,
-    ENTRY = abs(2.2),
+    ENTRY = abs(2.5),
     STOP_LOSS = 1.1,
-    TAKE_PROFIT = 5,
+    TAKE_PROFIT = 4.6,
     FEES = 0.010,
     LEVERAGE = 2):
         self.ENTRY = ENTRY

@@ -6,7 +6,7 @@ def target():
         host = 'localhost',
         user = 'root',
         password = '1234',
-        database = 'binance_BTC_kline'
+        database = 'btc_candle_history'
     )
     return database
 

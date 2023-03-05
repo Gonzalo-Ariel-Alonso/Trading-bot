@@ -100,7 +100,7 @@ def add_trade(entry,date,time,variation,trade_record,strategy):
     
 
 def trade_record_json(trade_record):
-    with open(f'\\trade_record.json','w') as trade_record_json:
+    with open(f'trade_record.json','w') as trade_record_json:
         for info in trade_record:
             trade_record[info] = trade_record[info]
         json.dump(trade_record, trade_record_json)
