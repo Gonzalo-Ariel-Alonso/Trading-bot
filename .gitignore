@@ -1,1 +1,5 @@
+.gitignore
 __pycache__
+binanance_conf.py
+chatgpt test
+Trading_bot_not_refactored.zip
